@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "C:\Users\HP\AppData\Local\Programs\Python\Python310\lib\runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "C:\Users\HP\Downloads\coding-agent\coding-agent\agent\cli.py", line 52, in <module>
+    main()
+  File "C:\Users\HP\Downloads\coding-agent\coding-agent\agent\cli.py", line 45, in main
+    result = agent.run(task)
+  File "C:\Users\HP\Downloads\coding-agent\coding-agent\agent\agent.py", line 76, in run
+    response = self.client.chat.completions.create(
+  File "C:\Users\HP\Downloads\coding-agent\coding-agent\venv\lib\site-packages\openai\_utils\_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\HP\Downloads\coding-agent\coding-agent\venv\lib\site-packages\openai\resources\chat\completions\completions.py", line 1296, in create
+    return self._post(
+  File "C:\Users\HP\Downloads\coding-agent\coding-agent\venv\lib\site-packages\openai\_base_client.py", line 1368, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+  File "C:\Users\HP\Downloads\coding-agent\coding-agent\venv\lib\site-packages\openai\_base_client.py", line 1141, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.APIStatusError: Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 32768 tokens, but can only afford 11465. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account', 'code': 402, 'metadata': {'limit_source': 'openrouter_credits', 'remedy_hint': 'Add credits at https://openrouter.ai/settings/credits, or lower max_tokens / prompt size to fit your remaining balance.', 'provider_name': None, 'previous_errors': [{'code': 402, 'message': 'This request requires more credits, or fewer max_tokens. You requested up to 131072 tokens, but can only afford 14929. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account'}, {'code': 402, 'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 16286. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account'}, {'code': 402, 'message': 'This request requires more credits, or fewer max_tokens. You requested up to 131072 tokens, but can only afford 14929. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account'}]}}, 'user_id': 'user_3Ik21KxgqFh3EJpACTzI79LpGqO'}
+Task: add a docstring to health_check
+Model: nvidia/nemotron-3-ultra-550b-a55b  |  Workspace: ./workspace
+

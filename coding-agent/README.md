@@ -186,3 +186,7 @@ scripts/
   mock_llm_server.py   scripted OpenAI-compatible stub used only to
                         generate the example transcript reproducibly
 ```
+Windows compatibility issues:
+- grep is unavailable on standard Windows installations
+- sleep is unavailable in cmd.exe
+- some tests assume Unix utilities
