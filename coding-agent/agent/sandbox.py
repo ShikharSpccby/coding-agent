@@ -21,6 +21,7 @@ connections, etc. within the workspace. See README "Limitations".
 import os
 import subprocess
 from pathlib import Path
+import re
 
 
 class SandboxError(Exception):
@@ -99,25 +100,37 @@ class Sandbox:
         return "\n".join(entries) if entries else "(empty)"
 
     # ---- search -------------------------------------------------------
-
     def grep(self, pattern: str, path: str = ".") -> str:
+        """Pure-Python recursive text search. Deliberately doesn't shell
+        out to the `grep`/`rg` binary: those aren't guaranteed to exist
+        (Windows has neither by default), and shelling out here would
+        make this tool's behavior depend on whatever happens to be on
+        PATH on the machine running the agent."""
         target = self._resolve(path)
+        if not target.exists():
+            raise FileNotFoundError(f"No such path: {path}")
         try:
-            result = subprocess.run(
-                ["grep", "-rn", "--exclude-dir=.git", pattern, str(target)],
-                capture_output=True,
-                text=True,
-                timeout=self.bash_timeout,
-            )
-        except FileNotFoundError:
-            raise RuntimeError("ripgrep/grep not available in this environment")
-        if result.returncode not in (0, 1):  # 1 = no matches, not an error
-            raise RuntimeError(result.stderr.strip())
-        # Report paths relative to the workspace root, not absolute.
-        lines = result.stdout.splitlines()
-        rel_lines = [line.replace(str(self.root) + os.sep, "") for line in lines]
-        return "\n".join(rel_lines) if rel_lines else "(no matches)"
+            regex = re.compile(pattern)
+        except re.error as e:
+            raise ValueError(f"Invalid regex pattern: {e}")
 
+        matches = []
+        search_root = [target] if target.is_file() else sorted(target.rglob("*"))
+        for p in search_root:
+            if not p.is_file():
+                continue
+            if any(part.startswith(".git") for part in p.parts):
+                continue
+            try:
+                text = p.read_text(errors="ignore")
+            except (UnicodeDecodeError, PermissionError):
+                continue
+            rel = p.relative_to(self.root)
+            for lineno, line in enumerate(text.splitlines(), start=1):
+                if regex.search(line):
+                    matches.append(f"{rel}:{lineno}:{line.strip()}")
+        return "\n".join(matches) if matches else "(no matches)"
+    
     # ---- shell ----------------------------------------------------------
 
     def run_bash(self, command: str) -> str:

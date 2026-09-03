@@ -47,7 +47,18 @@ class AgentConfig:
     # being sent back to the model, so one huge log dump can't blow the
     # context window.
     max_tool_output_chars: int = int(os.environ.get("AGENT_MAX_TOOL_OUTPUT", "8000"))
-
+    
+    # Max output tokens requested per model call. Left unset (None), some
+    # providers default to the model's full context window as the max,
+    # which free/low-balance API accounts often can't afford (OpenRouter
+    # ties max_tokens to available "credits" even on nominally free
+    # models). 4096 is enough for tool calls and reasoning steps in this
+    # agent's loop; raise it if you have a paid account and hit truncated
+    # responses on genuinely complex tasks.
+    
+    max_tokens: int = int(os.environ.get("AGENT_MAX_OUTPUT_TOKENS", "4096"))
+    
     # Root directory the agent is confined to. All file/bash tools
     # resolve paths relative to this and refuse to escape it.
+
     workspace: str = os.environ.get("AGENT_WORKSPACE", "./workspace")

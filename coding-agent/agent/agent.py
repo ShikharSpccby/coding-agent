@@ -1,4 +1,10 @@
 """
+Retry behavior: the model API call is wrapped with exponential backoff
+(agent._call_model) for rate limits, connection errors, and 5xx
+responses - these are common on shared/free-tier API endpoints and
+aren't the agent's fault. Anything else (bad request, auth failure)
+fails fast rather than retrying, since retrying a 4xx just repeats the
+same failure.
 The agent loop itself.
 
 This is intentionally a plain ReAct loop, not a framework:
@@ -14,11 +20,11 @@ need to be able to explain. A framework would hide exactly the parts
 (retry logic, truncation, stop conditions) that are the actual point
 of the exercise.
 """
-
 import json
+import time
 from dataclasses import dataclass, field
 
-from openai import OpenAI
+from openai import OpenAI, APIConnectionError, APIStatusError, RateLimitError
 
 from agent.config import AgentConfig
 from agent.sandbox import Sandbox, SandboxError
@@ -63,7 +69,45 @@ class CodingAgent:
             return text
         cut = len(text) - limit
         return text[:limit] + f"\n...[truncated {cut} chars]..."
+    def _call_model(self, messages, verbose: bool):
+        """Call the chat completions API with exponential backoff.
 
+        Rate limits and transient network/provider errors are common on
+        shared/free-tier endpoints and are not the agent's fault - they
+        shouldn't crash the whole run. Anything else (bad request, auth
+        failure, etc.) is a real problem and is re-raised immediately
+        rather than retried, since retrying it would just fail the same
+        way max_retries times before giving the same error anyway."""
+        max_retries = 5
+        base_delay = 2  # seconds
+        for attempt in range(max_retries):
+            try:
+                return self.client.chat.completions.create(
+                    model=self.config.model,
+                    messages=messages,
+                    tools=TOOL_SCHEMAS,
+                    max_tokens=self.config.max_tokens,
+                )
+            except (RateLimitError, APIConnectionError) as e:
+                if attempt == max_retries - 1:
+                    raise
+                delay = base_delay * (2 ** attempt)
+                if verbose:
+                    print(
+                        f"[retry] {type(e).__name__} - waiting {delay}s "
+                        f"before retry {attempt + 1}/{max_retries - 1}..."
+                    )
+                time.sleep(delay)
+            except APIStatusError as e:
+                if e.status_code < 500 or attempt == max_retries - 1:
+                    raise
+                delay = base_delay * (2 ** attempt)
+                if verbose:
+                    print(
+                        f"[retry] HTTP {e.status_code} - waiting {delay}s "
+                        f"before retry {attempt + 1}/{max_retries - 1}..."
+                    )
+                time.sleep(delay)
     def run(self, task: str, verbose: bool = True) -> str:
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -72,12 +116,13 @@ class CodingAgent:
 
         for step in range(1, self.config.max_steps + 1):
             log = StepLog(step=step)
-
-            response = self.client.chat.completions.create(
-                model=self.config.model,
-                messages=messages,
-                tools=TOOL_SCHEMAS,
-            )
+            response = self._call_model(messages, verbose)
+            # response = self.client.chat.completions.create(
+            #     model=self.config.model,
+            #     messages=messages,
+            #     tools=TOOL_SCHEMAS,
+            #     max_tokens=8192,
+            # )
             choice = response.choices[0].message
 
             if not choice.tool_calls:

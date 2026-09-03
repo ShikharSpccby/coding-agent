@@ -84,9 +84,12 @@ def test_run_bash_reports_nonzero_exit(sandbox):
 
 
 def test_run_bash_timeout_is_enforced(sandbox):
-    result = sandbox.run_bash("sleep 30")
+    # Use Python's sleep rather than the Unix `sleep` command: this test
+    # needs to pass on Windows too, and Python is guaranteed to be on
+    # PATH here (it's what's running the test), whereas a shell `sleep`
+    # builtin/binary is not.
+    result = sandbox.run_bash(f'{sys.executable} -c "import time; time.sleep(30)"')
     assert "TIMEOUT" in result
-
 
 def test_dispatch_routes_to_correct_tool(sandbox):
     dispatch(sandbox, "write_file", {"path": "x.txt", "content": "abc"})
